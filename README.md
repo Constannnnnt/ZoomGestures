@@ -29,7 +29,15 @@ pip install -r requirements.txt
 ## Run application
 
 Open OBS, add a virtual source and then start the python program
+
 ```bash
 python3 src/main.py
 ```
 
+```bash
+# Show all arguments you can configure
+python3 src/main.py --help
+
+# Show the debug window
+python3 src/main.py -d
+```
