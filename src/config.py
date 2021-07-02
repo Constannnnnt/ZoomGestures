@@ -12,8 +12,6 @@ class Mode(IntEnum):
     LOG_MOTION_GESTURE = 2,
     QUIET = 3
 
-mode = Mode.DEBUG
-
 # visualization variables
 RGB_CHANNELS = 3
 RED_COLOR = (0, 0, 255)
@@ -30,10 +28,12 @@ LOG_CODE_SIGN_GESTURE = ord('n')
 LOG_CODE_MOTION_GESTURE = ord('m')
 DEBUG_CODE = ord('d')
 QUIET_CODE = ord('e')
+A_CODE = ord('A')
+Z_CODE = ord('Z')
 
 # file path
-SIGN_GESTURE_FILE_PATH = '../data/sign_gesture.csv'
-MOTION_GESTURE_FILE_PATH = '../data/motion_gesture.csv'
+SIGN_GESTURE_FILE_PATH = 'data/sign_gesture.csv'
+MOTION_GESTURE_FILE_PATH = 'data/motion_gesture.csv'
 
 
 

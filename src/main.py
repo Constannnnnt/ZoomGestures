@@ -7,10 +7,18 @@ from os import error
 import cv2
 import argparse
 import csv
+import os
+from pathlib import Path
 
 import hands_detection as hd
 import virtual_cam as vcam
 import config as _
+
+# use a class attribute to update status
+class Status():
+    mode: int = _.Mode.DEBUG
+    gesture_id : str = ""
+    args: object = None
 
 def build_parser() -> object:
     parser = argparse.ArgumentParser()
@@ -25,7 +33,7 @@ def build_parser() -> object:
                         default=0.7, type=float,
                         help='Minimum Threshold Score for Hand Tracking, Default = 0.7')
     parser.add_argument('-v', '--verbose', action='store_true', dest='verbose',
-                        help="Verbose the Debug Information, Default = False")
+                        help="Verbose the Debug Information, Default = True")
     parser.add_argument('-d', '--debug', action='store_true', dest='debug',
                         help='Enable Debug Window, Default = True')
     parser.add_argument('--window_width', action='store', dest='window_width',
@@ -40,36 +48,62 @@ def build_parser() -> object:
 
     return parser
 
-def log_gesture_keypoints(mode, hand_results) -> None:
+
+def is_file_existed(path):
+    return os.path.exists(path)
+
+def create_file(path):
+    if (Status.args.verbose):
+        print("{0} does not exist. Creating a new file...".format(path))
+    Path(path).touch()
+
+def log_data_into_file(path, data):
+    if not is_file_existed(path):
+        create_file(path)
+    with open(path, 'a', newline="") as file:
+        writer = csv.writer(file)
+        if (Status.args.verbose):
+            print("Writing keypoints data into file...")
+        # TODO: think of data format to logout (class, data)
+        writer.writerow([Status.gesture_id])
+
+def log_gesture_keypoints(hand_results) -> None:
     is_empty = isinstance(hand_results.multi_hand_landmarks, type(None))
 
     if (is_empty):
         return None
 
-    if (_.mode == _.Mode.LOG_SIGN_GESTURE):
-        with open(_.SIGN_GESTURE_FILE_PATH, 'a', newline="") as file:
-            writer = csv.writer(file)
-            # TODO: think of data format to logout (class, data)
+    if (Status.gesture_id == ''):
+        return
 
-    elif (_.mode == _.Mode.LOG_MOTION_GESTURE):
-        with open(_.MOTION_GESTURE_FILE_PATH, 'a', newline="") as file:
-            writer = csv.writer(file)
-            # TODO: think of data format to logout (class, data)
+    if (Status.args.verbose):
+        print("Update gesture class: {0}".format(Status.gesture_id))
+
+    if (Status.mode == _.Mode.LOG_SIGN_GESTURE):
+        log_data_into_file(_.SIGN_GESTURE_FILE_PATH, hand_results)
+    elif (Status.mode == _.Mode.LOG_MOTION_GESTURE):
+        log_data_into_file(_.MOTION_GESTURE_FILE_PATH, hand_results)
     return
 
 
 def handle_key_events(key, is_quiet) -> None:
+    if (Status.args.verbose and key != 255):
+        print("Key {0} is pressed.".format(chr(key)))
 
     if (key == _.LOG_CODE_SIGN_GESTURE):
-        _.mode = _.Mode.LOG_SIGN_GESTURE
+        Status.mode = _.Mode.LOG_SIGN_GESTURE
     elif (key == _.LOG_CODE_MOTION_GESTURE):
-        _.mode = _.Mode.LOG_MOTION_GESTURE
+        Status.mode = _.Mode.LOG_MOTION_GESTURE
     elif (key == _.DEBUG_CODE and is_quiet):
-        _.mode = _.Mode.QUIET
+        Status.mode = _.Mode.QUIET
     elif (key == _.DEBUG_CODE and not is_quiet):
-        _.mode = _.Mode.DEBUG
+        Status.mode = _.Mode.DEBUG
     elif (key == _.QUIET_CODE):
-        _.mode = _.Mode.QUIET
+        Status.mode = _.Mode.QUIET
+
+    if (Status.mode == _.Mode.LOG_MOTION_GESTURE or Status.mode == _.Mode.LOG_SIGN_GESTURE):
+        if (key >= _.A_CODE and key <= _.Z_CODE):
+            Status.gesture_id = chr(key)
 
     return None
 
@@ -78,9 +112,10 @@ def main():
     # Create Parser to parse the arguments
     parser = build_parser()
     args = parser.parse_args()
+    Status.args = args
 
     if (not args.debug):
-        _.mode = _.Mode.QUIET
+        Status.mode = _.Mode.QUIET
 
     # capture the video frame with native camera
     cap = cv2.VideoCapture(0)
@@ -123,15 +158,13 @@ def main():
 
         hands_results = hands_detector.get_hands_results(image)
 
-        if (_.mode == _.Mode.LOG_MOTION_GESTURE or _.mode == _.Mode.LOG_SIGN_GESTURE):
-            log_gesture_keypoints(_.mode, hands_results)
+        if (Status.mode == _.Mode.LOG_MOTION_GESTURE or Status.mode == _.Mode.LOG_SIGN_GESTURE):
+            log_gesture_keypoints(hands_results)
 
         # Draw the hand annotations on the image.
         image.flags.writeable = True
 
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-        print(hands_results.multi_hand_landmarks)
 
         if hands_results.multi_hand_landmarks:
           for hand_landmarks in hands_results.multi_hand_landmarks:
@@ -144,7 +177,7 @@ def main():
                   # connection 's drawing settings: color and line thickness.
                 hands_drawing.DrawingSpec(color=_.SILVER_COLOR, thickness=_.LINE_THICKNESS))
 
-        if (_.mode != _.Mode.QUIET):
+        if (Status.mode != _.Mode.QUIET):
             cv2.imshow('Hands', image)
         else:
             cv2.destroyAllWindows()
